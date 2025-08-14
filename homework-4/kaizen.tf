@@ -6,89 +6,87 @@ terraform {
 
 provider "aws" { region = var.region }
 
-# -------- Tags (locals, as requested) --------
-locals {
-  common_tags = {
-    Name        = "Kaizen"
-    Environment = "Dev"
-    Department  = "Engineering"
-    Team        = "DevOps"
-    CreatedBy   = "manual"
-    Owner       = "Abigail"      # <-- your name here
-    Project     = "E-commerce"
-    Application = "Wordpress"
-  }
-}
-
-# -------- VPC --------
-# Use first (and only) object in the vpc list
-locals {
-  vpc_cfg = var.vpc[0]
-}
-
-resource "aws_vpc" "this" {
+# VPC
+resource "aws_vpc" "kaizen" {
   cidr_block           = local.vpc_cfg.cidr
   enable_dns_support   = local.vpc_cfg.dns_support
   enable_dns_hostnames = local.vpc_cfg.dns_hostnames
-  tags = local.common_tags
+  tags                 = local.common_tags
 }
 
-# -------- IGW --------
-resource "aws_internet_gateway" "this" {
-  vpc_id = aws_vpc.this.id
+# IGW
+resource "aws_internet_gateway" "homework4_igw" {
+  vpc_id = aws_vpc.kaizen.id
   tags   = merge(local.common_tags, { Name = var.igw_name })
 }
 
-# -------- Subnets (loop) --------
-locals {
-  subnet_map = { for s in var.subnets : s.name => s }
+# Subnets (explicit resources per instructor style)
+resource "aws_subnet" "public1" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = local.subnet_by_name["public1"].cidr
+  availability_zone       = local.subnet_by_name["public1"].az
+  map_public_ip_on_launch = true
+  tags                    = merge(local.common_tags, { Name = "public1" })
 }
 
-resource "aws_subnet" "this" {
-  for_each                  = local.subnet_map
-  vpc_id                    = aws_vpc.this.id
-  cidr_block                = each.value.cidr
-  availability_zone         = each.value.az
-  map_public_ip_on_launch   = each.value.map_public_ip_on_launch
-  tags                      = merge(local.common_tags, { Name = each.key })
+resource "aws_subnet" "public2" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = local.subnet_by_name["public2"].cidr
+  availability_zone       = local.subnet_by_name["public2"].az
+  map_public_ip_on_launch = true
+  tags                    = merge(local.common_tags, { Name = "public2" })
 }
 
-# -------- Route Tables + default route for public --------
-locals {
-  rt_public_name  = var.route_table_names[0]
-  rt_private_name = var.route_table_names[1]
+resource "aws_subnet" "private1" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = local.subnet_by_name["private1"].cidr
+  availability_zone       = local.subnet_by_name["private1"].az
+  map_public_ip_on_launch = false
+  tags                    = merge(local.common_tags, { Name = "private1" })
 }
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.this.id
-  tags   = merge(local.common_tags, { Name = local.rt_public_name })
+resource "aws_subnet" "private2" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = local.subnet_by_name["private2"].cidr
+  availability_zone       = local.subnet_by_name["private2"].az
+  map_public_ip_on_launch = false
+  tags                    = merge(local.common_tags, { Name = "private2" })
+}
+
+# Route tables
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.kaizen.id
+  tags   = merge(local.common_tags, { Name = var.route_table_names[0] })
 }
 
 resource "aws_route" "public_default" {
-  route_table_id         = aws_route_table.public.id
+  route_table_id         = aws_route_table.public_rt.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.this.id
+  gateway_id             = aws_internet_gateway.homework4_igw.id
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.this.id
-  tags   = merge(local.common_tags, { Name = local.rt_private_name })
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.kaizen.id
+  tags   = merge(local.common_tags, { Name = var.route_table_names[1] })
 }
 
-# -------- Associate subnets to RTs --------
-locals {
-  public_keys  = [for k, v in local.subnet_map : k if v.map_public_ip_on_launch]
-  private_keys = [for k, v in local.subnet_map : k if !v.map_public_ip_on_launch]
+# Associations
+resource "aws_route_table_association" "public1_assoc" {
+  subnet_id      = aws_subnet.public1.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-resource "aws_route_table_association" "public_assoc" {
-  for_each       = toset(local.public_keys)
-  subnet_id      = aws_subnet.this[each.value].id
-  route_table_id = aws_route_table.public.id
+resource "aws_route_table_association" "public2_assoc" {
+  subnet_id      = aws_subnet.public2.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-resource "aws_route_table_association" "private_assoc" {
-  for_each       = toset(local.private_keys)
-  subnet_id      = aws_subnet.this[each.value].id
-  route_table_id = aws_route_table.private.id
+resource "aws_route_table_association" "private1_assoc" {
+  subnet_id      = aws_subnet.private1.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "private2_assoc" {
+  subnet_id      = aws_subnet.private2.id
+  route_table_id = aws_route_table.private_rt.id
 }

@@ -1,17 +1,21 @@
 output "vpc_id" {
-  value = aws_vpc.this.id
+  value = aws_vpc.kaizen.id
 }
 
-output "subnet_ids" {
-  value = { for k, s in aws_subnet.this : k => s.id }
+output "public_subnet_ids" {
+  value = [aws_subnet.public1.id, aws_subnet.public2.id]
+}
+
+output "private_subnet_ids" {
+  value = [aws_subnet.private1.id, aws_subnet.private2.id]
 }
 
 output "security_group_id" {
-  value = aws_security_group.web.id
+  value = aws_security_group.web_sg.id
 }
 
 output "key_pair_name" {
-  value = aws_key_pair.this.key_name
+  value = aws_key_pair.kaizen_key.key_name
 }
 
 output "web_url" {
