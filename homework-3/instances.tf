@@ -13,7 +13,7 @@ data "aws_ami" "ubuntu22" {
   }
 }
 
-
+# Amazon Linux 2
 data "aws_ami" "amzn2" {
   most_recent = true
   owners      = ["137112412989"]
@@ -29,9 +29,8 @@ data "aws_ami" "amzn2" {
   }
 }
 
-
 locals {
-  ubuntu_ud = <<-EOT
+  ubuntu_user_data = <<-EOT
     #!/bin/bash
     set -e
     apt-get update -y
@@ -41,7 +40,7 @@ locals {
     systemctl restart apache2
   EOT
 
-  amazon_ud = <<-EOT
+  amazon_user_data = <<-EOT
     #!/bin/bash
     set -e
     yum update -y
@@ -55,22 +54,22 @@ locals {
 resource "aws_instance" "ubuntu" {
   ami                         = data.aws_ami.ubuntu22.id
   instance_type               = var.ubuntu_instance_type
-  subnet_id                   = aws_subnet.this["public1"].id
+  subnet_id                   = aws_subnet.public1.id
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   key_name                    = var.key_name
   associate_public_ip_address = true
-  user_data                   = local.ubuntu_ud
+  user_data                   = local.ubuntu_user_data
   tags                        = { Name = "Ubuntu" }
 }
-
 
 resource "aws_instance" "amazon" {
   ami                         = data.aws_ami.amzn2.id
   instance_type               = var.amazon_instance_type
-  subnet_id                   = aws_subnet.this["public2"].id
+  subnet_id                   = aws_subnet.public2.id
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   key_name                    = var.key_name
   associate_public_ip_address = true
-  user_data                   = local.amazon_ud
+  user_data                   = local.amazon_user_data
   tags                        = { Name = "Amazon" }
 }
+

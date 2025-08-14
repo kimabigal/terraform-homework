@@ -5,7 +5,7 @@ variable "region" {
 
 variable "key_name" {
   type    = string
-  default = "my-lapto-key-canada" 
+  default = "my-lapto-key-canada"
 }
 
 variable "ubuntu_instance_type" {

@@ -6,7 +6,6 @@ terraform {
 
 provider "aws" { region = var.region }
 
-# VPC
 resource "aws_vpc" "kaizen" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -14,62 +13,77 @@ resource "aws_vpc" "kaizen" {
   tags                 = { Name = "kaizen" }
 }
 
-# IGW
-resource "aws_internet_gateway" "igw" {
+resource "aws_internet_gateway" "homework3_igw" {
   vpc_id = aws_vpc.kaizen.id
   tags   = { Name = "homework3_igw" }
 }
 
-
-locals {
-  subnets = {
-    public1  = { cidr = "10.0.1.0/24", az = "us-west-2a", public = true }
-    public2  = { cidr = "10.0.2.0/24", az = "us-west-2b", public = true }
-    private1 = { cidr = "10.0.3.0/24", az = "us-west-2c", public = false }
-    private2 = { cidr = "10.0.4.0/24", az = "us-west-2d", public = false }
-  }
-}
-
-resource "aws_subnet" "this" {
-  for_each                = local.subnets
+resource "aws_subnet" "public1" {
   vpc_id                  = aws_vpc.kaizen.id
-  cidr_block              = each.value.cidr
-  availability_zone       = each.value.az
-  map_public_ip_on_launch = each.value.public
-  tags                    = { Name = each.key }
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "us-west-2a"
+  map_public_ip_on_launch = true
+  tags                    = { Name = "public1" }
+}
+
+resource "aws_subnet" "public2" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "us-west-2b"
+  map_public_ip_on_launch = true
+  tags                    = { Name = "public2" }
+}
+
+resource "aws_subnet" "private1" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = "10.0.3.0/24"
+  availability_zone       = "us-west-2c"
+  map_public_ip_on_launch = false
+  tags                    = { Name = "private1" }
+}
+
+resource "aws_subnet" "private2" {
+  vpc_id                  = aws_vpc.kaizen.id
+  cidr_block              = "10.0.4.0/24"
+  availability_zone       = "us-west-2d"
+  map_public_ip_on_launch = false
+  tags                    = { Name = "private2" }
 }
 
 
-resource "aws_route_table" "public" {
+resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.kaizen.id
   tags   = { Name = "public-rt" }
 }
 
 resource "aws_route" "public_default" {
-  route_table_id         = aws_route_table.public.id
+  route_table_id         = aws_route_table.public_rt.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.igw.id
+  gateway_id             = aws_internet_gateway.homework3_igw.id
 }
 
-resource "aws_route_table" "private" {
+resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.kaizen.id
   tags   = { Name = "private-rt" }
 }
 
 
-locals {
-  public_keys  = ["public1", "public2"]
-  private_keys = ["private1", "private2"]
+resource "aws_route_table_association" "public1_assoc" {
+  subnet_id      = aws_subnet.public1.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-resource "aws_route_table_association" "public_assoc" {
-  for_each       = toset(local.public_keys)
-  subnet_id      = aws_subnet.this[each.value].id
-  route_table_id = aws_route_table.public.id
+resource "aws_route_table_association" "public2_assoc" {
+  subnet_id      = aws_subnet.public2.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-resource "aws_route_table_association" "private_assoc" {
-  for_each       = toset(local.private_keys)
-  subnet_id      = aws_subnet.this[each.value].id
-  route_table_id = aws_route_table.private.id
+resource "aws_route_table_association" "private1_assoc" {
+  subnet_id      = aws_subnet.private1.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "private2_assoc" {
+  subnet_id      = aws_subnet.private2.id
+  route_table_id = aws_route_table.private_rt.id
 }
