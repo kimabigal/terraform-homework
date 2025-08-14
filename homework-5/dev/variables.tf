@@ -31,8 +31,6 @@ variable "azs" {
   ]
 }
 
-# If you want to force a specific AMI, set with:
-# terraform apply -var 'ami_id=ami-xxxxxxxx'
 variable "ami_id" {
   type    = string
   default = null
